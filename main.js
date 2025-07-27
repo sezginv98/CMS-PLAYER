@@ -79,6 +79,7 @@ async function testApiConnection(apiUrl) {
       rejectUnauthorized: false
             console.error(`❌ [${index + 1}/${mediaList.length}] İndirme hatası: ${media.source}`);
             console.error(`   🔍 Hata detayı: ${error.message}`);
+    });
 
     const response = await axios.get(`${apiUrl}/health`, {
       timeout: 5000,
@@ -86,6 +87,7 @@ async function testApiConnection(apiUrl) {
         console.error(`❌ [${index + 1}/${mediaList.length}] Medya dosyası hatası: ${media.source}`);
         console.error(`   🔍 Hata detayı: ${error.message}`);
         console.error(`   🌐 URL: ${apiUrl}/media/${media.source}`);
+      headers: {
         'User-Agent': 'CMS-Player/1.0'
       }
     });
@@ -119,6 +121,7 @@ async function testApiConnection(apiUrl) {
       code: error.code,
       status: error.response?.status,
       url: error.config?.url
+    });
     console.error('❌ MEDYA DOSYASI İNDİRME GENEL HATASI:', error);
     return false;
   }
