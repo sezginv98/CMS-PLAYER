@@ -94,10 +94,24 @@ async function isDeviceRegistered(macAddress, apiUrl) {
 // API bağlantısını test et
 async function testApiConnection(apiUrl) {
   try {
+    console.log('API bağlantısı test ediliyor:', apiUrl);
+    
+    // URL formatını kontrol et
+    if (!apiUrl.startsWith('http://') && !apiUrl.startsWith('https://')) {
+      console.error('Geçersiz URL formatı:', apiUrl);
+      return false;
+    }
+    
     const response = await axios.get(`${apiUrl}/health`, { timeout: 5000 });
+    console.log('API yanıtı:', response.status, response.data);
     return response.status === 200;
   } catch (error) {
-    console.error('API bağlantı testi hatası:', error.message);
+    console.error('API bağlantı testi hatası:', {
+      message: error.message,
+      code: error.code,
+      response: error.response?.status,
+      url: apiUrl
+    });
     return false;
   }
 }
