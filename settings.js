@@ -26,11 +26,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     status.className = `status ${type}`;
     status.classList.remove('hidden');
     
-    // 5 saniye sonra gizle (error hariç)
+    // 3 saniye sonra gizle (error hariç)
     if (type !== 'error') {
       setTimeout(() => {
         status.classList.add('hidden');
-      }, 5000);
+      }, 3000);
     }
   }
   
@@ -39,27 +39,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     const apiUrl = apiUrlInput.value.trim();
     
     if (!apiUrl) {
-      showStatus('Lütfen API URL girin', 'error');
+      showStatus('API URL gerekli', 'error');
+      apiUrlInput.focus();
       return;
     }
     
     testBtn.disabled = true;
-    testBtn.textContent = 'Test ediliyor...';
-    showStatus('API bağlantısı test ediliyor...', 'info');
+    testBtn.textContent = '⏳ Test...';
+    showStatus('Bağlantı test ediliyor...', 'info');
     
     try {
       const result = await window.electronAPI.testApiConnection(apiUrl);
       
       if (result) {
-        showStatus('✓ API bağlantısı başarılı!', 'success');
+        showStatus('✅ Bağlantı başarılı!', 'success');
       } else {
-        showStatus('✗ API bağlantısı başarısız. URL\'yi kontrol edin.', 'error');
+        showStatus('❌ Bağlantı başarısız', 'error');
       }
     } catch (error) {
-      showStatus('✗ Bağlantı testi sırasında hata oluştu: ' + error.message, 'error');
+      showStatus('❌ Test hatası: ' + error.message, 'error');
     } finally {
       testBtn.disabled = false;
-      testBtn.textContent = 'Bağlantıyı Test Et';
+      testBtn.textContent = '🔍 Test Et';
     }
   });
   
@@ -69,43 +70,45 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     const configData = {
       apiUrl: apiUrlInput.value.trim(),
-      localMediaUrl: localMediaUrlInput.value.trim(),
-      registered_key: registeredKeyInput.value.trim()
+      localMediaUrl: localMediaUrlInput.value.trim() || './media',
+      registered_key: registeredKeyInput.value.trim() || 'string'
     };
     
-    // Validation
     if (!configData.apiUrl) {
       showStatus('API URL gerekli', 'error');
-      return;
-    }
-    
-    if (!configData.localMediaUrl) {
-      showStatus('Yerel medya klasörü gerekli', 'error');
+      apiUrlInput.focus();
       return;
     }
     
     saveBtn.disabled = true;
-    saveBtn.textContent = 'Kaydediliyor...';
+    saveBtn.textContent = '⏳ Kaydediyor...';
     showStatus('Ayarlar kaydediliyor...', 'info');
     
     try {
       const result = await window.electronAPI.saveConfig(configData);
       
       if (result.success) {
-        showStatus('✓ Ayarlar başarıyla kaydedildi!', 'success');
+        showStatus('✅ Kaydedildi!', 'success');
         
-        // 2 saniye sonra pencereyi kapat
+        // 1.5 saniye sonra pencereyi kapat
         setTimeout(() => {
           window.close();
-        }, 2000);
+        }, 1500);
       } else {
-        showStatus('✗ Ayarlar kaydedilemedi: ' + (result.error || 'Bilinmeyen hata'), 'error');
+        showStatus('❌ Kaydetme hatası: ' + (result.error || 'Bilinmeyen hata'), 'error');
       }
     } catch (error) {
-      showStatus('✗ Kaydetme sırasında hata oluştu: ' + error.message, 'error');
+      showStatus('❌ Hata: ' + error.message, 'error');
     } finally {
       saveBtn.disabled = false;
-      saveBtn.textContent = 'Kaydet';
+      saveBtn.textContent = '💾 Kaydet';
+    }
+  });
+  
+  // Enter tuşu ile test
+  apiUrlInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && !testBtn.disabled) {
+      testBtn.click();
     }
   });
 });

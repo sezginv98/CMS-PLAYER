@@ -126,10 +126,15 @@ async function registerDevice(deviceInfo, apiUrl) {
 // Ayar penceresi oluştur
 function createSettingsWindow() {
   settingsWindow = new BrowserWindow({
-    width: 500,
-    height: 400,
+    width: 400,
+    height: 300,
     parent: mainWindow,
     modal: true,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    alwaysOnTop: true,
+    center: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
