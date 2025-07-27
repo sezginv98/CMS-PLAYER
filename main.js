@@ -1,27 +1,83 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const axios = require('axios');
+const mac = require('node-macaddress');
+const localIp = require('local-ipv4-address');
+const os = require('os');
 
 let mainWindow;
+let settingsWindow;
 
 // Cihaz bilgilerini al
-function getDeviceInfo() {
-  const ip = localIp();
-  const macAddress = mac.one();
-  return { ip, macAddress };
+async function getDeviceInfo() {
+  try {
+    const ip = await new Promise((resolve, reject) => {
+      localIp((err, ip) => {
+        if (err) reject(err);
+        else resolve(ip);
+      });
+    });
+    
+    const macAddress = await new Promise((resolve, reject) => {
+      mac.one((err, addr) => {
+        if (err) reject(err);
+        else resolve(addr);
+      });
+    });
+    
+    const deviceName = os.hostname();
+    
+    return {
+      device_name: deviceName,
+      device_mac: macAddress,
+      device_ip: ip
+    };
+  } catch (error) {
+    console.error('Cihaz bilgileri alınamadı:', error);
+    return null;
+  }
 }
 
 // device.json dosyasını oluştur
 function createDeviceFile(deviceInfo) {
   const devicePath = path.join(__dirname, 'config', 'device.json');
+  
+  // Config klasörü yoksa oluştur
+  const configDir = path.join(__dirname, 'config');
+  if (!fs.existsSync(configDir)) {
+    fs.mkdirSync(configDir, { recursive: true });
+  }
+  
   fs.writeFileSync(devicePath, JSON.stringify(deviceInfo, null, 2));
 }
 
 // config.json dosyasını oku
 function getConfig() {
+  try {
+    const configPath = path.join(__dirname, 'config', 'config.json');
+    if (!fs.existsSync(configPath)) {
+      return null;
+    }
+    const data = fs.readFileSync(configPath, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Config dosyası okunamadı:', error);
+    return null;
+  }
+}
+
+// config.json dosyasını oluştur
+function createConfigFile(configData) {
   const configPath = path.join(__dirname, 'config', 'config.json');
-  const data = fs.readFileSync(configPath, 'utf8');
-  return JSON.parse(data);
+  
+  // Config klasörü yoksa oluştur
+  const configDir = path.join(__dirname, 'config');
+  if (!fs.existsSync(configDir)) {
+    fs.mkdirSync(configDir, { recursive: true });
+  }
+  
+  fs.writeFileSync(configPath, JSON.stringify(configData, null, 2));
 }
 
 // Cihaz CMS'de kayıtlı mı?
@@ -30,6 +86,18 @@ async function isDeviceRegistered(macAddress, apiUrl) {
     const response = await axios.get(`${apiUrl}/devices/${macAddress}`);
     return response.status === 200;
   } catch (error) {
+    console.error('Cihaz kayıt kontrolü hatası:', error.message);
+    return false;
+  }
+}
+
+// API bağlantısını test et
+async function testApiConnection(apiUrl) {
+  try {
+    const response = await axios.get(`${apiUrl}/health`, { timeout: 5000 });
+    return response.status === 200;
+  } catch (error) {
+    console.error('API bağlantı testi hatası:', error.message);
     return false;
   }
 }
@@ -38,8 +106,8 @@ async function isDeviceRegistered(macAddress, apiUrl) {
 async function registerDevice(deviceInfo, apiUrl) {
   const payload = {
     name: "CMS Player",
-    mac_address: deviceInfo.macAddress,
-    ip_address: deviceInfo.ip,
+    mac_address: deviceInfo.device_mac,
+    ip_address: deviceInfo.device_ip,
     registered_key: "default_key",
     status: "online",
     group_id: 1,
@@ -53,6 +121,28 @@ async function registerDevice(deviceInfo, apiUrl) {
     console.error('Cihaz kayıt hatası:', error.message);
     return false;
   }
+}
+
+// Ayar penceresi oluştur
+function createSettingsWindow() {
+  settingsWindow = new BrowserWindow({
+    width: 500,
+    height: 400,
+    parent: mainWindow,
+    modal: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      sandbox: true,
+      nodeIntegration: false
+    }
+  });
+
+  settingsWindow.loadFile('settings.html');
+  
+  settingsWindow.on('closed', () => {
+    settingsWindow = null;
+  });
 }
 
 function createWindow(customSize = { width: 800, height: 600 }) {
@@ -70,7 +160,37 @@ function createWindow(customSize = { width: 800, height: 600 }) {
   mainWindow.loadFile('index.html');
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // 1. Device.json kontrolü ve oluşturma
+  const devicePath = path.join(__dirname, 'config', 'device.json');
+  if (!fs.existsSync(devicePath)) {
+    console.log('device.json bulunamadı, cihaz bilgileri alınıyor...');
+    const deviceInfo = await getDeviceInfo();
+    if (deviceInfo) {
+      createDeviceFile(deviceInfo);
+      console.log('device.json oluşturuldu:', deviceInfo);
+    } else {
+      console.error('Cihaz bilgileri alınamadı!');
+    }
+  }
+
+  // 2. Config.json kontrolü
+  let config = getConfig();
+  let needsSettings = false;
+
+  if (!config) {
+    console.log('config.json bulunamadı');
+    needsSettings = true;
+  } else {
+    // API bağlantısını test et
+    const apiConnected = await testApiConnection(config.apiUrl);
+    if (!apiConnected) {
+      console.log('API bağlantısı kurulamadı');
+      needsSettings = true;
+    }
+  }
+
+  // 3. Ana pencereyi oluştur
   // layout.json okuyup pencereyi oluştur
   const layoutPath = path.join(__dirname, 'config', 'layout.json');
 
@@ -93,6 +213,11 @@ app.whenReady().then(() => {
 
     // Dosya değişikliklerini izle
     watchFile(path.join('config', 'layout.json'), 'layout-data');
+    
+    // 4. Gerekirse ayar penceresini aç
+    if (needsSettings) {
+      createSettingsWindow();
+    }
   });
 });
 
@@ -144,4 +269,29 @@ ipcMain.on('get-layout', (event) => {
 
 ipcMain.handle('get-media-path', (event, relativePath) => {
   return path.join(__dirname, relativePath);
+});
+
+// Ayar penceresi IPC handlers
+ipcMain.handle('test-api-connection', async (event, apiUrl) => {
+  return await testApiConnection(apiUrl);
+});
+
+ipcMain.handle('save-config', async (event, configData) => {
+  try {
+    createConfigFile(configData);
+    
+    // Ayar penceresini kapat
+    if (settingsWindow) {
+      settingsWindow.close();
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Config kaydetme hatası:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-current-config', () => {
+  return getConfig();
 });
