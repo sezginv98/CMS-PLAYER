@@ -24,31 +24,21 @@ if (!fs.existsSync(path.join(__dirname, 'config'))) {
 
 // Cihaz bilgilerini tespit et ve kaydet
 async function createDeviceInfo() {
-    console.log('=== MEDYA DOSYASI İNDİRME BAŞLADI ===');
-    console.log(`Toplam kontrol edilecek dosya sayısı: ${mediaList.length}`);
-    
   try {
     console.log('Cihaz bilgileri tespit ediliyor...');
     
-      console.log('Media klasörü oluşturuldu:', mediaDir);
     const deviceName = os.hostname();
     const ipAddress = await localIpV4Address();
     const macAddress = await new Promise((resolve, reject) => {
       macaddress.one((err, mac) => {
-        console.log(`[${index + 1}/${mediaList.length}] Kontrol ediliyor: ${media.source} (${media.type})`);
-        
         if (err) reject(err);
         else resolve(mac);
       });
     });
-          const stats = fs.statSync(filePath);
-          console.log(`✅ [${index + 1}/${mediaList.length}] Dosya zaten mevcut: ${media.source} (${(stats.size / 1024).toFixed(2)} KB)`);
+
     const deviceInfo = {
       device_name: deviceName,
       device_mac: macAddress,
-        console.log(`⬇️ [${index + 1}/${mediaList.length}] İndiriliyor: ${media.source}`);
-        const startTime = Date.now();
-        
       device_ip: ipAddress
     };
 
@@ -59,34 +49,18 @@ async function createDeviceInfo() {
     console.error('Cihaz bilgileri tespit edilemedi:', error);
     return null;
   }
-        const contentLength = response.headers['content-length'];
-        const fileSizeKB = contentLength ? (parseInt(contentLength) / 1024).toFixed(2) : 'bilinmiyor';
-        console.log(`📦 [${index + 1}/${mediaList.length}] Dosya boyutu: ${fileSizeKB} KB`);
-
 }
 
 // API bağlantısını test et
 async function testApiConnection(apiUrl) {
   try {
-            const endTime = Date.now();
-            const duration = ((endTime - startTime) / 1000).toFixed(2);
-            const stats = fs.statSync(filePath);
-            const actualSizeKB = (stats.size / 1024).toFixed(2);
-            console.log(`✅ [${index + 1}/${mediaList.length}] İndirme tamamlandı: ${media.source}`);
-            console.log(`   📊 Boyut: ${actualSizeKB} KB, Süre: ${duration}s`);
-    
     const agent = new https.Agent({
       rejectUnauthorized: false
-            console.error(`❌ [${index + 1}/${mediaList.length}] İndirme hatası: ${media.source}`);
-            console.error(`   🔍 Hata detayı: ${error.message}`);
     });
 
     const response = await axios.get(`${apiUrl}/health`, {
       timeout: 5000,
       httpsAgent: agent,
-        console.error(`❌ [${index + 1}/${mediaList.length}] Medya dosyası hatası: ${media.source}`);
-        console.error(`   🔍 Hata detayı: ${error.message}`);
-        console.error(`   🌐 URL: ${apiUrl}/media/${media.source}`);
       headers: {
         'User-Agent': 'CMS-Player/1.0'
       }
@@ -96,34 +70,210 @@ async function testApiConnection(apiUrl) {
     return response.status === 200;
   } catch (error) {
     console.error('API test hatası:', {
-    
-    // Sonuçları analiz et
-    let successCount = 0;
-    let existsCount = 0;
-    let errorCount = 0;
-    
-    results.forEach((result, index) => {
-      if (result.status === 'fulfilled') {
-        if (result.value.status === 'downloaded') successCount++;
-        else if (result.value.status === 'exists') existsCount++;
-      } else {
-        errorCount++;
-        console.error(`❌ Promise hatası [${index + 1}]:`, result.reason);
-      }
-    });
-    
-    console.log('=== MEDYA DOSYASI İNDİRME RAPORU ===');
-    console.log(`📊 Toplam dosya: ${mediaList.length}`);
-    console.log(`✅ Yeni indirilen: ${successCount}`);
-    console.log(`📁 Zaten mevcut: ${existsCount}`);
-    console.log(`❌ Hatalı: ${errorCount}`);
-    console.log('=====================================');
       code: error.code,
       status: error.response?.status,
       url: error.config?.url
     });
-    console.error('❌ MEDYA DOSYASI İNDİRME GENEL HATASI:', error);
     return false;
+  }
+}
+
+// Layout verilerini API'den çek ve medya dosyalarını indir
+async function syncLayoutData(apiUrl, macAddress) {
+  try {
+    console.log('Layout verileri çekiliyor...');
+    
+    const agent = new https.Agent({
+      rejectUnauthorized: false
+    });
+
+    const layoutUrl = `${apiUrl}/api/device-layouts/${macAddress}`;
+    console.log('Layout URL:', layoutUrl);
+    
+    const response = await axios.get(layoutUrl, {
+      timeout: 10000,
+      httpsAgent: agent,
+      headers: {
+        'User-Agent': 'CMS-Player/1.0'
+      }
+    });
+
+    const layoutData = response.data;
+    console.log('Layout verileri alındı:', layoutData);
+
+    // Layout verisini kaydet
+    fs.writeFileSync(layoutPath, JSON.stringify(layoutData, null, 2));
+    console.log('Layout.json dosyası kaydedildi');
+
+    // Medya dosyalarını topla ve indir
+    if (layoutData.zones && Array.isArray(layoutData.zones)) {
+      await downloadMediaFiles(apiUrl, layoutData);
+    } else {
+      console.log('Layout verisinde zones bulunamadı');
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Layout senkronizasyon hatası:', {
+      message: error.message,
+      status: error.response?.status,
+      url: error.config?.url
+    });
+    return false;
+  }
+}
+
+// Medya dosyalarını indir
+async function downloadMediaFiles(apiUrl, layoutData) {
+  console.log('=== MEDYA DOSYASI TOPLAMA BAŞLADI ===');
+  
+  const mediaList = [];
+  
+  // Tüm zone'lardan medya dosyalarını topla
+  try {
+    layoutData.zones.forEach((zone, zoneIndex) => {
+      console.log(`Zone ${zoneIndex + 1} kontrol ediliyor...`);
+      
+      if (zone.media_list && Array.isArray(zone.media_list)) {
+        zone.media_list.forEach((media, mediaIndex) => {
+          console.log(`  Media ${mediaIndex + 1}: type=${media.type}, source=${media.source}`);
+          
+          if ((media.type === 'image' || media.type === 'video') && media.source) {
+            // Website URL'lerini atla
+            if (!media.source.startsWith('http://') && !media.source.startsWith('https://')) {
+              mediaList.push(media);
+              console.log(`    ✅ Listeye eklendi: ${media.source}`);
+            } else {
+              console.log(`    ⏭️ Website URL atlandı: ${media.source}`);
+            }
+          } else {
+            console.log(`    ⏭️ Desteklenmeyen tür veya kaynak eksik`);
+          }
+        });
+      } else {
+        console.log(`  Zone ${zoneIndex + 1}'de media_list bulunamadı`);
+      }
+    });
+  } catch (error) {
+    console.error('Medya listesi toplama hatası:', error);
+  }
+  
+  console.log(`Toplam ${mediaList.length} medya dosyası bulundu`);
+  
+  if (mediaList.length === 0) {
+    console.log('❌ İndirilecek medya dosyası bulunamadı');
+    return;
+  }
+
+  // Media klasörünü oluştur
+  const mediaDir = path.join(__dirname, 'media');
+  if (!fs.existsSync(mediaDir)) {
+    fs.mkdirSync(mediaDir);
+    console.log('Media klasörü oluşturuldu:', mediaDir);
+  } else {
+    console.log('Media klasörü mevcut:', mediaDir);
+  }
+
+  console.log('=== MEDYA DOSYASI İNDİRME BAŞLADI ===');
+  
+  // Paralel indirme
+  const downloadPromises = mediaList.map((media, index) => 
+    downloadSingleMedia(apiUrl, media, index, mediaList.length, mediaDir)
+  );
+  
+  const results = await Promise.allSettled(downloadPromises);
+  
+  // Sonuçları analiz et
+  let successCount = 0;
+  let existsCount = 0;
+  let errorCount = 0;
+  
+  results.forEach((result, index) => {
+    if (result.status === 'fulfilled') {
+      if (result.value.status === 'downloaded') successCount++;
+      else if (result.value.status === 'exists') existsCount++;
+    } else {
+      errorCount++;
+      console.error(`❌ Promise hatası [${index + 1}]:`, result.reason);
+    }
+  });
+  
+  console.log('=== MEDYA DOSYASI İNDİRME RAPORU ===');
+  console.log(`📊 Toplam dosya: ${mediaList.length}`);
+  console.log(`✅ Yeni indirilen: ${successCount}`);
+  console.log(`📁 Zaten mevcut: ${existsCount}`);
+  console.log(`❌ Hatalı: ${errorCount}`);
+  console.log('=====================================');
+}
+
+// Tek bir medya dosyasını indir
+async function downloadSingleMedia(apiUrl, media, index, total, mediaDir) {
+  try {
+    console.log(`[${index + 1}/${total}] Kontrol ediliyor: ${media.source} (${media.type})`);
+    
+    const filePath = path.join(mediaDir, media.source);
+    
+    // Dosya zaten varsa atla
+    if (fs.existsSync(filePath)) {
+      const stats = fs.statSync(filePath);
+      console.log(`✅ [${index + 1}/${total}] Dosya zaten mevcut: ${media.source} (${(stats.size / 1024).toFixed(2)} KB)`);
+      return { status: 'exists', file: media.source };
+    }
+    
+    // Dosyayı indir
+    const mediaUrl = `${apiUrl}/media/${media.source}`;
+    console.log(`⬇️ [${index + 1}/${total}] İndiriliyor: ${media.source}`);
+    console.log(`   🌐 URL: ${mediaUrl}`);
+    const startTime = Date.now();
+    
+    const agent = new https.Agent({
+      rejectUnauthorized: false
+    });
+    
+    const response = await axios.get(mediaUrl, {
+      responseType: 'stream',
+      timeout: 30000,
+      httpsAgent: agent,
+      headers: {
+        'User-Agent': 'CMS-Player/1.0'
+      }
+    });
+    
+    const contentLength = response.headers['content-length'];
+    const fileSizeKB = contentLength ? (parseInt(contentLength) / 1024).toFixed(2) : 'bilinmiyor';
+    console.log(`📦 [${index + 1}/${total}] Dosya boyutu: ${fileSizeKB} KB`);
+
+    const writer = fs.createWriteStream(filePath);
+    response.data.pipe(writer);
+    
+    return new Promise((resolve, reject) => {
+      writer.on('finish', () => {
+        const endTime = Date.now();
+        const duration = ((endTime - startTime) / 1000).toFixed(2);
+        const stats = fs.statSync(filePath);
+        const actualSizeKB = (stats.size / 1024).toFixed(2);
+        console.log(`✅ [${index + 1}/${total}] İndirme tamamlandı: ${media.source}`);
+        console.log(`   📊 Boyut: ${actualSizeKB} KB, Süre: ${duration}s`);
+        resolve({ status: 'downloaded', file: media.source });
+      });
+      
+      writer.on('error', (error) => {
+        console.error(`❌ [${index + 1}/${total}] Yazma hatası: ${media.source}`);
+        console.error(`   🔍 Hata detayı: ${error.message}`);
+        reject(error);
+      });
+    });
+    
+  } catch (error) {
+    if (error.response) {
+      console.error(`❌ [${index + 1}/${total}] HTTP hatası: ${media.source}`);
+      console.error(`   📡 Status: ${error.response.status}`);
+      console.error(`   🌐 URL: ${apiUrl}/media/${media.source}`);
+    } else {
+      console.error(`❌ [${index + 1}/${total}] İndirme hatası: ${media.source}`);
+      console.error(`   🔍 Hata detayı: ${error.message}`);
+    }
+    throw error;
   }
 }
 
