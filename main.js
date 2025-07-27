@@ -222,3 +222,20 @@ ipcMain.handle('save-config', async (event, configData) => {
 ipcMain.handle('get-current-config', (event) => {
   return loadConfig();
 });
+
+ipcMain.handle('sync-layout', async (event) => {
+  try {
+    const config = loadConfig();
+    if (!config || !config.apiUrl) {
+      return { success: false, error: 'Config bulunamadı' };
+    }
+    
+    const deviceInfo = JSON.parse(fs.readFileSync(devicePath, 'utf8'));
+    const result = await syncLayoutData(config.apiUrl, deviceInfo.device_mac);
+    
+    return { success: result };
+  } catch (error) {
+    console.error('Layout senkronizasyon hatası:', error);
+    return { success: false, error: error.message };
+  }
+});
