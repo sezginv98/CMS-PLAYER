@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.electronAPI.onLayoutData((event, layout) => {
     if (!layout) return;
 
+    console.log('🎬 Yeni layout verisi alındı, player başlatılıyor...');
     const appDiv = document.getElementById('app');
     appDiv.innerHTML = ''; // Önceki içeriği temizle
     appDiv.style.width = layout.width + 'px';
@@ -23,6 +24,22 @@ document.addEventListener('DOMContentLoaded', () => {
       // startZone fonksiyonu burada çağrılıyor
       startZone(zoneDiv, zone.media_list);
     });
+    
+    console.log('✅ Player başarıyla başlatıldı');
+  });
+  
+  // Player temizleme eventi
+  window.electronAPI.onClearPlayer(() => {
+    console.log('🧹 Player ekranı temizleniyor...');
+    const appDiv = document.getElementById('app');
+    appDiv.innerHTML = '';
+    
+    const scrollDiv = document.getElementById('scrolling-text');
+    if (scrollDiv) {
+      scrollDiv.classList.add('hidden');
+    }
+    
+    console.log('✅ Player ekranı temizlendi');
   });
 });
 

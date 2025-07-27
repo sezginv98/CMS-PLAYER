@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   getLayout: () => ipcRenderer.send('get-layout'),
   onLayoutData: (callback) => ipcRenderer.on('layout-data', callback),
+  onClearPlayer: (callback) => ipcRenderer.on('clear-player', callback),
   getMediaPath: (relativePath) => ipcRenderer.invoke('get-media-path', relativePath),
   
   // Ayar penceresi API'leri

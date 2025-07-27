@@ -111,6 +111,20 @@ async function syncLayoutData(apiUrl, deviceInfo) {
       }
     }
 
+    // Layout değişikliği kontrolü
+    let layoutChanged = false;
+    if (oldLayoutData) {
+      layoutChanged = JSON.stringify(oldLayoutData) !== JSON.stringify(layoutData);
+      if (layoutChanged) {
+        console.log('🔄 Layout değişikliği tespit edildi!');
+      } else {
+        console.log('✅ Layout değişikliği yok');
+      }
+    } else {
+      layoutChanged = true;
+      console.log('🆕 İlk layout yüklemesi');
+    }
+
     // Layout verisini kaydet
     fs.writeFileSync(layoutPath, JSON.stringify(layoutData, null, 2));
     console.log('Layout.json dosyası kaydedildi');
@@ -134,14 +148,14 @@ async function syncLayoutData(apiUrl, deviceInfo) {
       await cleanupOldMediaFiles(oldMediaFiles, newMediaFiles);
     }
 
-    return true;
+    return { success: true, layoutChanged };
   } catch (error) {
     console.error('Layout senkronizasyon hatası:', {
       message: error.message,
       status: error.response?.status,
       url: error.config?.url
     });
-    return false;
+    return { success: false, layoutChanged: false };
   }
 }
 
@@ -401,13 +415,22 @@ function startAutoSync() {
       // Layout senkronizasyonu yap
       const syncResult = await syncLayoutData(config.apiUrl, deviceInfo);
       
-      if (syncResult) {
+      if (syncResult.success) {
         console.log('✅ Otomatik senkronizasyon tamamlandı');
         
-        // Ana pencereye yeni layout verilerini gönder
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          const layout = JSON.parse(fs.readFileSync(layoutPath, 'utf8'));
-          mainWindow.webContents.send('layout-data', layout);
+        // Layout değişmişse player'ı sıfırla
+        if (syncResult.layoutChanged && mainWindow && !mainWindow.isDestroyed()) {
+          console.log('🔄 Player ekranı sıfırlanıyor...');
+          
+          // Önce mevcut içeriği temizle
+          mainWindow.webContents.send('clear-player');
+          
+          // 500ms bekleyip yeni layout'u yükle
+          setTimeout(() => {
+            const layout = JSON.parse(fs.readFileSync(layoutPath, 'utf8'));
+            mainWindow.webContents.send('layout-data', layout);
+            console.log('✅ Yeni layout yüklendi');
+          }, 500);
         }
       } else {
         console.log('❌ Otomatik senkronizasyon başarısız');
@@ -600,7 +623,7 @@ app.whenReady().then(async () => {
         console.log('Layout verileri çekiliyor...');
         const syncResult = await syncLayoutData(config.apiUrl, deviceInfo);
         
-        if (syncResult) {
+        if (syncResult.success) {
           console.log('✅ Layout başarıyla senkronize edildi');
         } else {
           console.log('❌ Layout senkronizasyonu başarısız');
@@ -685,7 +708,7 @@ ipcMain.handle('sync-layout', async (event) => {
     const deviceInfo = JSON.parse(fs.readFileSync(devicePath, 'utf8'));
     const result = await syncLayoutData(config.apiUrl, deviceInfo);
     
-    return { success: result };
+    return { success: result.success };
   } catch (error) {
     console.error('Layout senkronizasyon hatası:', error);
     return { success: false, error: error.message };
