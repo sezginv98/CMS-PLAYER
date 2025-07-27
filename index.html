@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta http-equiv="Content-Security-Policy" content="
+  default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;
+  script-src * 'unsafe-inline' 'unsafe-eval' data:;
+  style-src * 'unsafe-inline';
+  img-src * data:;
+  media-src *;
+  frame-src *;
+  connect-src *;
+">
+  <title>FBU Digital Signage</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app"></div>
+  <div id="scrolling-text" class="hidden"></div>
+  <script src="config.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

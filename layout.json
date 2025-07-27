@@ -1,0 +1,62 @@
+{
+  "layout_id": "1",
+  "width": 1024,
+  "height": 1200,
+  "total_zones": 2,
+  "zones": [
+    {
+      "zone_id": "1",
+      "position_x": 0,
+      "position_y": 0,
+      "width": 512,
+      "height": 1200,
+      "media_list": [
+        {
+          "media_id": "1",
+          "type": "image",
+          "source": "image1.png",
+          "duration": 5,
+          "transition": {
+            "type": "fade"
+          }
+        },
+        {
+          "media_id": "2",
+          "type": "video",
+          "source": "video1.mp4",
+          "duration": 5,
+          "transition": {
+            "type": "slide"
+          }
+        }
+      ]
+    },
+    {
+      "zone_id": "2",
+      "position_x": 512,
+      "position_y": 0,
+      "width": 512,
+      "height": 1200,
+      "media_list": [
+        {
+          "media_id": "3",
+          "type": "website",
+          "source": "https://example.com",
+          "duration": 10,
+          "transition": {
+            "type": "fade"
+          }
+        },
+        {
+          "media_id": "4",
+          "type": "image",
+          "source": "image2.png",
+          "duration": 5,
+          "transition": {
+            "type": "slide"
+          }
+        }
+      ]
+    }
+  ]
+}

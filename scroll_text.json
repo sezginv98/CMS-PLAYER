@@ -1,0 +1,11 @@
+{
+  "layout_id": "1",
+  "scrolling_text_enabled": true,
+  "scrolling_text_content": "Bu kayan yazının testidir.",
+  "scrolling_text_position": "left",
+  "scrolling_text_direction": "top-bottom",
+  "scrolling_text_speed": 2,
+  "scrolling_text_size": 24,
+  "scrolling_text_color": "green",
+  "scrolling_text_background": "black"
+}
