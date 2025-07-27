@@ -101,15 +101,37 @@ async function syncLayoutData(apiUrl, deviceInfo) {
     const layoutData = response.data;
     console.log('Layout verileri alındı:', layoutData);
 
+    // Eski layout verilerini oku (varsa)
+    let oldLayoutData = null;
+    if (fs.existsSync(layoutPath)) {
+      try {
+        oldLayoutData = JSON.parse(fs.readFileSync(layoutPath, 'utf8'));
+      } catch (error) {
+        console.log('Eski layout verisi okunamadı:', error.message);
+      }
+    }
+
     // Layout verisini kaydet
     fs.writeFileSync(layoutPath, JSON.stringify(layoutData, null, 2));
     console.log('Layout.json dosyası kaydedildi');
 
+    // Eski medya dosyalarını topla
+    let oldMediaFiles = [];
+    if (oldLayoutData) {
+      oldMediaFiles = getMediaFilesFromLayout(oldLayoutData);
+    }
+
     // Medya dosyalarını topla ve indir
+    let newMediaFiles = [];
     if (layoutData.zones && Array.isArray(layoutData.zones)) {
-      await downloadMediaFiles(apiUrl, layoutData);
+      newMediaFiles = await downloadMediaFiles(apiUrl, layoutData);
     } else {
       console.log('Layout verisinde zones bulunamadı');
+    }
+
+    // Eski medya dosyalarını temizle
+    if (oldMediaFiles.length > 0) {
+      await cleanupOldMediaFiles(oldMediaFiles, newMediaFiles);
     }
 
     return true;
@@ -162,7 +184,7 @@ async function downloadMediaFiles(apiUrl, layoutData) {
   
   if (mediaList.length === 0) {
     console.log('❌ İndirilecek medya dosyası bulunamadı');
-    return;
+    return [];
   }
 
   // Media klasörünü oluştur
@@ -204,6 +226,9 @@ async function downloadMediaFiles(apiUrl, layoutData) {
   console.log(`📁 Zaten mevcut: ${existsCount}`);
   console.log(`❌ Hatalı: ${errorCount}`);
   console.log('=====================================');
+  
+  // İndirilen dosya listesini döndür
+  return mediaList.map(media => media.source);
 }
 
 // Tek bir medya dosyasını indir
@@ -275,6 +300,123 @@ async function downloadSingleMedia(apiUrl, media, index, total, mediaDir) {
     }
     throw error;
   }
+}
+
+// Layout verisinden medya dosyalarını topla
+function getMediaFilesFromLayout(layoutData) {
+  const mediaFiles = [];
+  
+  try {
+    if (layoutData.zones && Array.isArray(layoutData.zones)) {
+      layoutData.zones.forEach(zone => {
+        if (zone.media_list && Array.isArray(zone.media_list)) {
+          zone.media_list.forEach(media => {
+            if ((media.type === 'image' || media.type === 'video') && media.source) {
+              if (!media.source.startsWith('http://') && !media.source.startsWith('https://')) {
+                mediaFiles.push(media.source);
+              }
+            }
+          });
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Medya dosyaları toplama hatası:', error);
+  }
+  
+  return mediaFiles;
+}
+
+// Eski medya dosyalarını temizle
+async function cleanupOldMediaFiles(oldMediaFiles, newMediaFiles) {
+  console.log('=== ESKİ MEDYA DOSYASI TEMİZLEME BAŞLADI ===');
+  
+  const mediaDir = path.join(__dirname, 'media');
+  const filesToDelete = oldMediaFiles.filter(oldFile => !newMediaFiles.includes(oldFile));
+  
+  console.log(`📊 Eski dosya sayısı: ${oldMediaFiles.length}`);
+  console.log(`📊 Yeni dosya sayısı: ${newMediaFiles.length}`);
+  console.log(`🗑️ Silinecek dosya sayısı: ${filesToDelete.length}`);
+  
+  if (filesToDelete.length === 0) {
+    console.log('✅ Silinecek dosya yok');
+    return;
+  }
+  
+  let deletedCount = 0;
+  let errorCount = 0;
+  
+  for (const fileName of filesToDelete) {
+    try {
+      const filePath = path.join(mediaDir, fileName);
+      
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        console.log(`🗑️ Silindi: ${fileName}`);
+        deletedCount++;
+      } else {
+        console.log(`⚠️ Dosya bulunamadı: ${fileName}`);
+      }
+    } catch (error) {
+      console.error(`❌ Silme hatası: ${fileName} - ${error.message}`);
+      errorCount++;
+    }
+  }
+  
+  console.log('=== MEDYA DOSYASI TEMİZLEME RAPORU ===');
+  console.log(`✅ Silinen dosya: ${deletedCount}`);
+  console.log(`❌ Hatalı silme: ${errorCount}`);
+  console.log('====================================');
+}
+
+// Otomatik senkronizasyon başlat
+function startAutoSync() {
+  console.log('🔄 Otomatik senkronizasyon başlatılıyor...');
+  
+  setInterval(async () => {
+    try {
+      console.log('⏰ Otomatik senkronizasyon çalışıyor...');
+      
+      const config = loadConfig();
+      if (!config || !config.apiUrl) {
+        console.log('❌ Config bulunamadı, senkronizasyon atlandı');
+        return;
+      }
+      
+      // API bağlantısını test et
+      const apiConnected = await testApiConnection(config.apiUrl);
+      if (!apiConnected) {
+        console.log('❌ API bağlantısı yok, senkronizasyon atlandı');
+        return;
+      }
+      
+      // Device bilgilerini oku
+      if (!fs.existsSync(devicePath)) {
+        console.log('❌ Device bilgisi bulunamadı, senkronizasyon atlandı');
+        return;
+      }
+      
+      const deviceInfo = JSON.parse(fs.readFileSync(devicePath, 'utf8'));
+      
+      // Layout senkronizasyonu yap
+      const syncResult = await syncLayoutData(config.apiUrl, deviceInfo);
+      
+      if (syncResult) {
+        console.log('✅ Otomatik senkronizasyon tamamlandı');
+        
+        // Ana pencereye yeni layout verilerini gönder
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          const layout = JSON.parse(fs.readFileSync(layoutPath, 'utf8'));
+          mainWindow.webContents.send('layout-data', layout);
+        }
+      } else {
+        console.log('❌ Otomatik senkronizasyon başarısız');
+      }
+      
+    } catch (error) {
+      console.error('Otomatik senkronizasyon hatası:', error);
+    }
+  }, 60000); // 60 saniye = 1 dakika
 }
 
 // Cihazın kayıtlı olup olmadığını kontrol et
@@ -469,6 +611,9 @@ app.whenReady().then(async () => {
   
   // Ana pencereyi oluştur
   createMainWindow();
+  
+  // Otomatik senkronizasyonu başlat
+  startAutoSync();
   
   // Config yoksa veya API bağlantısı yoksa ayar penceresini aç
   if (!config || !apiConnected) {
