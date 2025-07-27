@@ -4,11 +4,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!layout) return;
 
     const appDiv = document.getElementById('app');
+    appDiv.innerHTML = ''; // Önceki içeriği temizle
     appDiv.style.width = layout.width + 'px';
     appDiv.style.height = layout.height + 'px';
 
     // Kayan yazı işleme
     handleScrollingText(layout);
+    
     layout.zones.forEach(zone => {
       const zoneDiv = document.createElement('div');
       zoneDiv.className = 'zone';
@@ -18,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
       zoneDiv.style.height = zone.height + 'px';
       appDiv.appendChild(zoneDiv);
 
-      // ✅ startZone fonksiyonu burada çağrılıyor
+      // startZone fonksiyonu burada çağrılıyor
       startZone(zoneDiv, zone.media_list);
     });
   });
@@ -27,6 +29,11 @@ document.addEventListener('DOMContentLoaded', () => {
 // Kayan yazı işleme fonksiyonu
 function handleScrollingText(layout) {
   const scrollDiv = document.getElementById('scrolling-text');
+  
+  if (!scrollDiv) {
+    console.error('Scrolling text element not found');
+    return;
+  }
 
   if (!layout.scrolling_text_enabled) {
     scrollDiv.classList.add('hidden');
@@ -35,12 +42,15 @@ function handleScrollingText(layout) {
 
   scrollDiv.textContent = layout.scrolling_text_content || 'Default scrolling text';
   scrollDiv.style.fontSize = (layout.scrolling_text_size || 24) + 'px';
-  scrollDiv.style.color = layout.scrolling_text_color;
-  scrollDiv.style.backgroundColor = layout.scrolling_text_background;
+  scrollDiv.style.color = layout.scrolling_text_color || 'black';
+  scrollDiv.style.backgroundColor = layout.scrolling_text_background || 'transparent';
 
   // Position
-  const pos = layout.scrolling_text_position;
-  const dir = layout.scrolling_text_direction;
+  const pos = layout.scrolling_text_position || 'bottom';
+  const dir = layout.scrolling_text_direction || 'left-right';
+  
+  // Önceki sınıfları temizle
+  scrollDiv.className = '';
   scrollDiv.className = 'position-' + pos;
 
   // Animation
@@ -65,8 +75,13 @@ function handleScrollingText(layout) {
   scrollDiv.classList.remove('hidden');
 }
 
-// ✅ startZone fonksiyonu DOMContentLoaded dışına alınmalı
+// startZone fonksiyonu
 function startZone(container, mediaList) {
+  if (!mediaList || mediaList.length === 0) {
+    console.warn('Media list is empty for zone');
+    return;
+  }
+  
   let index = 0;
 
   function showMedia() {

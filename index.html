@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <meta http-equiv="Content-Security-Policy" content="
-  default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;
-  script-src * 'unsafe-inline' 'unsafe-eval' data:;
+  default-src 'self' data: blob: http://localhost:3000 https:;
+  script-src 'self' 'unsafe-inline';
   style-src * 'unsafe-inline';
   img-src * data:;
   media-src *;
