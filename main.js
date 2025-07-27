@@ -24,21 +24,31 @@ if (!fs.existsSync(path.join(__dirname, 'config'))) {
 
 // Cihaz bilgilerini tespit et ve kaydet
 async function createDeviceInfo() {
+    console.log('=== MEDYA DOSYASI İNDİRME BAŞLADI ===');
+    console.log(`Toplam kontrol edilecek dosya sayısı: ${mediaList.length}`);
+    
   try {
     console.log('Cihaz bilgileri tespit ediliyor...');
     
+      console.log('Media klasörü oluşturuldu:', mediaDir);
     const deviceName = os.hostname();
     const ipAddress = await localIpV4Address();
     const macAddress = await new Promise((resolve, reject) => {
       macaddress.one((err, mac) => {
+        console.log(`[${index + 1}/${mediaList.length}] Kontrol ediliyor: ${media.source} (${media.type})`);
+        
         if (err) reject(err);
         else resolve(mac);
       });
     });
-
+          const stats = fs.statSync(filePath);
+          console.log(`✅ [${index + 1}/${mediaList.length}] Dosya zaten mevcut: ${media.source} (${(stats.size / 1024).toFixed(2)} KB)`);
     const deviceInfo = {
       device_name: deviceName,
       device_mac: macAddress,
+        console.log(`⬇️ [${index + 1}/${mediaList.length}] İndiriliyor: ${media.source}`);
+        const startTime = Date.now();
+        
       device_ip: ipAddress
     };
 
@@ -49,21 +59,33 @@ async function createDeviceInfo() {
     console.error('Cihaz bilgileri tespit edilemedi:', error);
     return null;
   }
+        const contentLength = response.headers['content-length'];
+        const fileSizeKB = contentLength ? (parseInt(contentLength) / 1024).toFixed(2) : 'bilinmiyor';
+        console.log(`📦 [${index + 1}/${mediaList.length}] Dosya boyutu: ${fileSizeKB} KB`);
+
 }
 
 // API bağlantısını test et
 async function testApiConnection(apiUrl) {
   try {
-    console.log('API bağlantısı test ediliyor:', apiUrl);
+            const endTime = Date.now();
+            const duration = ((endTime - startTime) / 1000).toFixed(2);
+            const stats = fs.statSync(filePath);
+            const actualSizeKB = (stats.size / 1024).toFixed(2);
+            console.log(`✅ [${index + 1}/${mediaList.length}] İndirme tamamlandı: ${media.source}`);
+            console.log(`   📊 Boyut: ${actualSizeKB} KB, Süre: ${duration}s`);
     
     const agent = new https.Agent({
       rejectUnauthorized: false
-    });
+            console.error(`❌ [${index + 1}/${mediaList.length}] İndirme hatası: ${media.source}`);
+            console.error(`   🔍 Hata detayı: ${error.message}`);
 
     const response = await axios.get(`${apiUrl}/health`, {
       timeout: 5000,
       httpsAgent: agent,
-      headers: {
+        console.error(`❌ [${index + 1}/${mediaList.length}] Medya dosyası hatası: ${media.source}`);
+        console.error(`   🔍 Hata detayı: ${error.message}`);
+        console.error(`   🌐 URL: ${apiUrl}/media/${media.source}`);
         'User-Agent': 'CMS-Player/1.0'
       }
     });
@@ -72,11 +94,32 @@ async function testApiConnection(apiUrl) {
     return response.status === 200;
   } catch (error) {
     console.error('API test hatası:', {
-      message: error.message,
+    
+    // Sonuçları analiz et
+    let successCount = 0;
+    let existsCount = 0;
+    let errorCount = 0;
+    
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        if (result.value.status === 'downloaded') successCount++;
+        else if (result.value.status === 'exists') existsCount++;
+      } else {
+        errorCount++;
+        console.error(`❌ Promise hatası [${index + 1}]:`, result.reason);
+      }
+    });
+    
+    console.log('=== MEDYA DOSYASI İNDİRME RAPORU ===');
+    console.log(`📊 Toplam dosya: ${mediaList.length}`);
+    console.log(`✅ Yeni indirilen: ${successCount}`);
+    console.log(`📁 Zaten mevcut: ${existsCount}`);
+    console.log(`❌ Hatalı: ${errorCount}`);
+    console.log('=====================================');
       code: error.code,
       status: error.response?.status,
       url: error.config?.url
-    });
+    console.error('❌ MEDYA DOSYASI İNDİRME GENEL HATASI:', error);
     return false;
   }
 }
