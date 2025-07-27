@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Kayan yazı işleme fonksiyonu
-function handleScrollingText(scrollingText) {
+function handleScrollingText(layout) {
   const scrollDiv = document.getElementById('scrolling-text');
 
   if (!layout.scrolling_text_enabled) {
@@ -34,7 +34,7 @@ function handleScrollingText(scrollingText) {
   }
 
   scrollDiv.textContent = layout.scrolling_text_content || 'Default scrolling text';
-  scrollDiv.style.fontSize = layout.scrolling_text_size + 'px';
+  scrollDiv.style.fontSize = (layout.scrolling_text_size || 24) + 'px';
   scrollDiv.style.color = layout.scrolling_text_color;
   scrollDiv.style.backgroundColor = layout.scrolling_text_background;
 
@@ -44,7 +44,7 @@ function handleScrollingText(scrollingText) {
   scrollDiv.className = 'position-' + pos;
 
   // Animation
-  const speed = layout.scrolling_text_speed;
+  const speed = layout.scrolling_text_speed || 10;
   let animationName = '';
 
   if (pos === 'top' || pos === 'bottom') {
@@ -65,7 +65,6 @@ function handleScrollingText(scrollingText) {
   scrollDiv.classList.remove('hidden');
 }
 
-
 // ✅ startZone fonksiyonu DOMContentLoaded dışına alınmalı
 function startZone(container, mediaList) {
   let index = 0;
@@ -75,6 +74,14 @@ function startZone(container, mediaList) {
 
     const media = mediaList[index];
     const mediaEl = createMediaElement(media);
+    
+    if (!mediaEl) {
+      // Medya elementi oluşturulamazsa bir sonrakine geç
+      index = (index + 1) % mediaList.length;
+      setTimeout(showMedia, 100);
+      return;
+    }
+    
     container.innerHTML = '';
     container.appendChild(mediaEl);
 
@@ -85,37 +92,42 @@ function startZone(container, mediaList) {
     setTimeout(() => {
       mediaEl.classList.remove('active');
       setTimeout(() => {
-        mediaEl.remove();
+        if (mediaEl.parentNode) {
+          mediaEl.remove();
+        }
         index = (index + 1) % mediaList.length;
         showMedia();
       }, transitionDuration);
     }, duration);
   }
 
-function createMediaElement(media) {
-  let el;
+  function createMediaElement(media) {
+    let el;
 
-  if (media.type === 'image') {
-    el = document.createElement('img');
-  el.src = `${window.CONFIG.media_url}/${media.source}`;
-  } else if (media.type === 'video') {
-    el = document.createElement('video');
-    el.src = `${window.CONFIG.media_url}/${media.source}`;
-    el.autoplay = true;
-    el.muted = true;
-    el.loop = true;
-  } else if (media.type === 'website') {
-    el = document.createElement('iframe');
-    el.src = media.source;
-    el.sandbox = 'allow-same-origin allow-scripts';
-  } else {
-    console.error('Desteklenmeyen medya türü:', media.type);
-    return null;
+    if (media.type === 'image') {
+      el = document.createElement('img');
+      el.src = `${window.CONFIG.media_url}/${media.source}`;
+      el.onerror = () => console.error('Resim yüklenemedi:', media.source);
+    } else if (media.type === 'video') {
+      el = document.createElement('video');
+      el.src = `${window.CONFIG.media_url}/${media.source}`;
+      el.autoplay = true;
+      el.muted = true;
+      el.loop = true;
+      el.onerror = () => console.error('Video yüklenemedi:', media.source);
+    } else if (media.type === 'website') {
+      el = document.createElement('iframe');
+      el.src = media.source;
+      el.sandbox = 'allow-same-origin allow-scripts';
+      el.onerror = () => console.error('Website yüklenemedi:', media.source);
+    } else {
+      console.error('Desteklenmeyen medya türü:', media.type);
+      return null;
+    }
+
+    el.className = 'media active';
+    return el;
   }
-
-  el.className = 'media active';
-  return el;
-}
 
   showMedia();
 }
