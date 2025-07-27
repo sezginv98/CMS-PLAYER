@@ -1,3 +1,5 @@
 {
-  "api_url": "https://local.cmsapi:3000/api"
+  "apiUrl": "https://local.cmsapi",
+  "localMediaUrl": "./media",
+  "registered_key": "string"
 }

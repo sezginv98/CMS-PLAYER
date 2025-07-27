@@ -1,25 +1,23 @@
 {
   "layout_id": "1",
-  "width": 1024,
-  "height": 1200,
+  "width": 1920,
+  "height": 1080,
   "total_zones": 2,
-  "scrolling_text": {
-    "enabled": true,
-    "content": "Bu kayan yazının testidir.",
-    "position": "left",
-    "direction": "top-bottom",
-    "speed": 2,
-    "size": 24,
-    "color": "green",
-    "background": "black"
-  },
+  "scrolling_text_enabled": true,
+  "scrolling_text_content": "kayan yazı",
+  "scrolling_text_position": "bottom",
+  "scrolling_text_direction": "left-right",
+  "scrolling_text_speed": 20,
+  "scrolling_text_size": 42,
+  "scrolling_text_color": "black",
+  "scrolling_text_background": "transparent",
   "zones": [
     {
       "zone_id": "1",
       "position_x": 0,
       "position_y": 0,
-      "width": 512,
-      "height": 1200,
+      "width": 960,
+      "height": 1080,
       "media_list": [
         {
           "media_id": "1",
@@ -32,38 +30,38 @@
         },
         {
           "media_id": "2",
-          "type": "video",
-          "source": "video1.mp4",
+          "type": "image",
+          "source": "image2.png",
           "duration": 5,
           "transition": {
-            "type": "slide"
+            "type": "fade"
           }
         }
       ]
     },
     {
       "zone_id": "2",
-      "position_x": 512,
+      "position_x": 960,
       "position_y": 0,
-      "width": 512,
-      "height": 1200,
+      "width": 960,
+      "height": 1080,
       "media_list": [
         {
-          "media_id": "3",
+          "media_id": "1",
           "type": "website",
           "source": "https://example.com",
-          "duration": 10,
+          "duration": 5,
           "transition": {
             "type": "fade"
           }
         },
         {
-          "media_id": "4",
-          "type": "image",
-          "source": "image2.png",
+          "media_id": "2",
+          "type": "video",
+          "source": "video1.mp4",
           "duration": 5,
           "transition": {
-            "type": "slide"
+            "type": "fade"
           }
         }
       ]

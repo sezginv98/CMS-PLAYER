@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     appDiv.style.height = layout.height + 'px';
 
     // Kayan yazı işleme
-    handleScrollingText(layout.scrolling_text);
+    handleScrollingText(layout);
     layout.zones.forEach(zone => {
       const zoneDiv = document.createElement('div');
       zoneDiv.className = 'zone';
@@ -28,23 +28,23 @@ document.addEventListener('DOMContentLoaded', () => {
 function handleScrollingText(scrollingText) {
   const scrollDiv = document.getElementById('scrolling-text');
 
-  if (!scrollingText || !scrollingText.enabled) {
+  if (!layout.scrolling_text_enabled) {
     scrollDiv.classList.add('hidden');
     return;
   }
 
-  scrollDiv.textContent = scrollingText.content || 'Default scrolling text';
-  scrollDiv.style.fontSize = scrollingText.size + 'px';
-  scrollDiv.style.color = scrollingText.color;
-  scrollDiv.style.backgroundColor = scrollingText.background;
+  scrollDiv.textContent = layout.scrolling_text_content || 'Default scrolling text';
+  scrollDiv.style.fontSize = layout.scrolling_text_size + 'px';
+  scrollDiv.style.color = layout.scrolling_text_color;
+  scrollDiv.style.backgroundColor = layout.scrolling_text_background;
 
   // Position
-  const pos = scrollingText.position;
-  const dir = scrollingText.direction;
+  const pos = layout.scrolling_text_position;
+  const dir = layout.scrolling_text_direction;
   scrollDiv.className = 'position-' + pos;
 
   // Animation
-  const speed = scrollingText.speed;
+  const speed = layout.scrolling_text_speed;
   let animationName = '';
 
   if (pos === 'top' || pos === 'bottom') {
@@ -61,7 +61,7 @@ function handleScrollingText(scrollingText) {
     }
   }
 
-  scrollDiv.style.animation = `${animationName} ${speed * 10}s linear infinite`;
+  scrollDiv.style.animation = `${animationName} ${speed}s linear infinite`;
   scrollDiv.classList.remove('hidden');
 }
 

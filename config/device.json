@@ -1,6 +1,5 @@
 {
-  "device_name": "totem",
-  "device_mac": "00:11:22:33:44:55",
-  "device_ip": "192.168.1.100",
-  "device_group_id": 1
+  "device_name": "SEZGIN-PC",
+  "device_mac": "e8:9c:25:2c:c8:fb",
+  "device_ip": "192.168.1.72"
 }
