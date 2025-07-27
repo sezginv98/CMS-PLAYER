@@ -79,7 +79,7 @@ async function testApiConnection(apiUrl) {
 }
 
 // Layout verilerini API'den çek ve medya dosyalarını indir
-async function syncLayoutData(apiUrl, macAddress) {
+async function syncLayoutData(apiUrl, deviceInfo) {
   try {
     console.log('Layout verileri çekiliyor...');
     
@@ -87,7 +87,7 @@ async function syncLayoutData(apiUrl, macAddress) {
       rejectUnauthorized: false
     });
 
-    const layoutUrl = `${apiUrl}/api/device-layouts/${macAddress}`;
+    const layoutUrl = `${apiUrl}/api/device-layouts/${deviceInfo.device_mac}`;
     console.log('Layout URL:', layoutUrl);
     
     const response = await axios.get(layoutUrl, {
@@ -277,6 +277,81 @@ async function downloadSingleMedia(apiUrl, media, index, total, mediaDir) {
   }
 }
 
+// Cihazın kayıtlı olup olmadığını kontrol et
+async function checkDeviceExists(apiUrl, macAddress) {
+  try {
+    console.log('Cihaz kayıt durumu kontrol ediliyor...');
+    
+    const agent = new https.Agent({
+      rejectUnauthorized: false
+    });
+
+    const checkUrl = `${apiUrl}/api/devices/isdevice/${macAddress}`;
+    console.log('Cihaz kontrol URL:', checkUrl);
+    
+    const response = await axios.get(checkUrl, {
+      timeout: 10000,
+      httpsAgent: agent,
+      headers: {
+        'User-Agent': 'CMS-Player/1.0'
+      }
+    });
+    
+    console.log('Cihaz kontrol sonucu:', response.data);
+    return response.data.exists === true;
+  } catch (error) {
+    console.error('Cihaz kontrol hatası:', {
+      message: error.message,
+      status: error.response?.status,
+      url: error.config?.url
+    });
+    return false;
+  }
+}
+
+// Cihazı API'ye kaydet
+async function registerDevice(apiUrl, deviceInfo, registeredKey) {
+  try {
+    console.log('Cihaz kaydediliyor...');
+    
+    const agent = new https.Agent({
+      rejectUnauthorized: false
+    });
+
+    const registerData = {
+      name: deviceInfo.device_name,
+      mac_address: deviceInfo.device_mac,
+      ip_address: deviceInfo.device_ip,
+      registered_key: registeredKey,
+      status: "online",
+      group_id: 1,
+      last_online: new Date().toISOString()
+    };
+
+    console.log('Kayıt verisi:', registerData);
+    
+    const response = await axios.post(`${apiUrl}/api/devices`, registerData, {
+      timeout: 10000,
+      httpsAgent: agent,
+      headers: {
+        'User-Agent': 'CMS-Player/1.0',
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    console.log('Cihaz kayıt sonucu:', response.status, response.data);
+    return response.status === 200 || response.status === 201;
+  } catch (error) {
+    console.error('Cihaz kayıt hatası:', {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data,
+      url: error.config?.url
+    });
+    return false;
+  }
+}
+
 // Config dosyasını yükle
 function loadConfig() {
   try {
@@ -358,16 +433,36 @@ app.whenReady().then(async () => {
   if (config && config.apiUrl) {
     apiConnected = await testApiConnection(config.apiUrl);
     
-    // API bağlantısı varsa ve layout dosyası yoksa otomatik senkronizasyon
-    if (apiConnected && !fs.existsSync(layoutPath)) {
-      console.log('Layout dosyası bulunamadı, API\'den çekiliyor...');
+    // API bağlantısı varsa cihaz kontrolü ve layout senkronizasyonu
+    if (apiConnected) {
       const deviceInfo = JSON.parse(fs.readFileSync(devicePath, 'utf8'));
-      const syncResult = await syncLayoutData(config.apiUrl, deviceInfo.device_mac);
       
-      if (syncResult) {
-        console.log('✅ Layout otomatik olarak senkronize edildi');
+      // Cihazın kayıtlı olup olmadığını kontrol et
+      const deviceExists = await checkDeviceExists(config.apiUrl, deviceInfo.device_mac);
+      
+      if (!deviceExists) {
+        console.log('❌ Cihaz kayıtlı değil, kaydediliyor...');
+        const registerResult = await registerDevice(config.apiUrl, deviceInfo, config.registered_key);
+        
+        if (registerResult) {
+          console.log('✅ Cihaz başarıyla kaydedildi');
+        } else {
+          console.log('❌ Cihaz kaydı başarısız');
+        }
       } else {
-        console.log('❌ Layout senkronizasyonu başarısız');
+        console.log('✅ Cihaz zaten kayıtlı');
+      }
+      
+      // Layout dosyası yoksa veya cihaz yeni kaydedildiyse layout çek
+      if (!fs.existsSync(layoutPath) || !deviceExists) {
+        console.log('Layout verileri çekiliyor...');
+        const syncResult = await syncLayoutData(config.apiUrl, deviceInfo);
+        
+        if (syncResult) {
+          console.log('✅ Layout başarıyla senkronize edildi');
+        } else {
+          console.log('❌ Layout senkronizasyonu başarısız');
+        }
       }
     }
   }
@@ -443,7 +538,7 @@ ipcMain.handle('sync-layout', async (event) => {
     }
     
     const deviceInfo = JSON.parse(fs.readFileSync(devicePath, 'utf8'));
-    const result = await syncLayoutData(config.apiUrl, deviceInfo.device_mac);
+    const result = await syncLayoutData(config.apiUrl, deviceInfo);
     
     return { success: result };
   } catch (error) {
