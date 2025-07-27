@@ -335,6 +335,9 @@ function createMainWindow() {
 
   mainWindow.loadFile('index.html');
   
+  // Geliştirici araçlarını aç
+  mainWindow.webContents.openDevTools();
+  
   // Menüyü gizle
   Menu.setApplicationMenu(null);
 }
