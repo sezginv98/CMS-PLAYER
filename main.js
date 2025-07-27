@@ -354,6 +354,19 @@ app.whenReady().then(async () => {
   
   if (config && config.apiUrl) {
     apiConnected = await testApiConnection(config.apiUrl);
+    
+    // API bağlantısı varsa ve layout dosyası yoksa otomatik senkronizasyon
+    if (apiConnected && !fs.existsSync(layoutPath)) {
+      console.log('Layout dosyası bulunamadı, API\'den çekiliyor...');
+      const deviceInfo = JSON.parse(fs.readFileSync(devicePath, 'utf8'));
+      const syncResult = await syncLayoutData(config.apiUrl, deviceInfo.device_mac);
+      
+      if (syncResult) {
+        console.log('✅ Layout otomatik olarak senkronize edildi');
+      } else {
+        console.log('❌ Layout senkronizasyonu başarısız');
+      }
+    }
   }
   
   // Ana pencereyi oluştur
