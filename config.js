@@ -1,3 +1,3 @@
 window.CONFIG = {
-  media_url: 'C:\\Users\\sezgi\\OneDrive\\Desktop\\cms-player\\media'
+  media_url: 'http://localhost:3000'
 };

@@ -121,11 +121,11 @@ function startZone(container, mediaList) {
 
     if (media.type === 'image') {
       el = document.createElement('img');
-      el.src = `${window.CONFIG.media_url}/${media.source}`;
+      el.src = `http://localhost:3000/${media.source}`;
       el.onerror = () => console.error('Resim yüklenemedi:', media.source);
     } else if (media.type === 'video') {
       el = document.createElement('video');
-      el.src = `${window.CONFIG.media_url}/${media.source}`;
+      el.src = `http://localhost:3000/${media.source}`;
       el.autoplay = true;
       el.muted = true;
       el.loop = true;
