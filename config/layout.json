@@ -3,6 +3,16 @@
   "width": 1024,
   "height": 1200,
   "total_zones": 2,
+  "scrolling_text": {
+    "enabled": true,
+    "content": "Bu kayan yazının testidir.",
+    "position": "left",
+    "direction": "top-bottom",
+    "speed": 2,
+    "size": 24,
+    "color": "green",
+    "background": "black"
+  },
   "zones": [
     {
       "zone_id": "1",

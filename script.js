@@ -7,6 +7,8 @@ document.addEventListener('DOMContentLoaded', () => {
     appDiv.style.width = layout.width + 'px';
     appDiv.style.height = layout.height + 'px';
 
+    // Kayan yazı işleme
+    handleScrollingText(layout.scrolling_text);
     layout.zones.forEach(zone => {
       const zoneDiv = document.createElement('div');
       zoneDiv.className = 'zone';
@@ -22,46 +24,46 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-window.electronAPI.getScrollText();
-  window.electronAPI.onScrollTextData((event, scrollText) => {
-    const scrollDiv = document.getElementById('scrolling-text');
+// Kayan yazı işleme fonksiyonu
+function handleScrollingText(scrollingText) {
+  const scrollDiv = document.getElementById('scrolling-text');
 
-    if (!scrollText || !scrollText.scrolling_text_enabled) {
-      scrollDiv.classList.add('hidden');
-      return;
+  if (!scrollingText || !scrollingText.enabled) {
+    scrollDiv.classList.add('hidden');
+    return;
+  }
+
+  scrollDiv.textContent = scrollingText.content || 'Default scrolling text';
+  scrollDiv.style.fontSize = scrollingText.size + 'px';
+  scrollDiv.style.color = scrollingText.color;
+  scrollDiv.style.backgroundColor = scrollingText.background;
+
+  // Position
+  const pos = scrollingText.position;
+  const dir = scrollingText.direction;
+  scrollDiv.className = 'position-' + pos;
+
+  // Animation
+  const speed = scrollingText.speed;
+  let animationName = '';
+
+  if (pos === 'top' || pos === 'bottom') {
+    if (dir === 'left-right') {
+      animationName = 'scroll-right';
+    } else {
+      animationName = 'scroll-left';
     }
-
-    scrollDiv.textContent = scrollText.scrolling_text_content || 'Default scrolling text';
-    scrollDiv.style.fontSize = scrollText.scrolling_text_size + 'px';
-    scrollDiv.style.color = scrollText.scrolling_text_color;
-    scrollDiv.style.backgroundColor = scrollText.scrolling_text_background;
-
-    // Position
-    const pos = scrollText.scrolling_text_position;
-    const dir = scrollText.scrolling_text_direction;
-    scrollDiv.className = 'position-' + pos;
-
-    // Animation
-    const speed = scrollText.scrolling_text_speed;
-    let animationName = '';
-
-    if (pos === 'top' || pos === 'bottom') {
-      if (dir === 'left-right') {
-        animationName = 'scroll-right';
-      } else {
-        animationName = 'scroll-left';
-      }
-    } else if (pos === 'left' || pos === 'right') {
-      if (dir === 'top-bottom') {
-        animationName = 'scroll-down';
-      } else {
-        animationName = 'scroll-up';
-      }
+  } else if (pos === 'left' || pos === 'right') {
+    if (dir === 'top-bottom') {
+      animationName = 'scroll-down';
+    } else {
+      animationName = 'scroll-up';
     }
+  }
 
-    scrollDiv.style.animation = `${animationName} ${speed * 10}s linear infinite`;
-    scrollDiv.classList.remove('hidden');
-  });
+  scrollDiv.style.animation = `${animationName} ${speed * 10}s linear infinite`;
+  scrollDiv.classList.remove('hidden');
+}
 
 
 // ✅ startZone fonksiyonu DOMContentLoaded dışına alınmalı
